@@ -9,21 +9,6 @@
 __device__ float deg_to_rad(float deg);
 __device__ float calculateDistance(location_t* loc1, location_t* loc2);
 
-__device__ float calculateDistance(location_t* loc1, location_t* loc2) {
-	float dlat = deg_to_rad(loc1->latitude - loc2->latitude);
-	float dlon = deg_to_rad(loc1->longitude - loc2->longitude);
-	float a = sinf(dlat / 2) * sinf(dlat / 2)
-			+ cosf(deg_to_rad(loc1->latitude)) * cosf(deg_to_rad(loc2->latitude))
-					* sinf(dlon / 2) * sinf(dlon / 2);
-	float c = 2 * atan2f(sqrtf(a), sqrtf(1 - a));
-	float d = EARTH_R * c;
-	return d;
-}
-
-__device__ float deg_to_rad(float deg) {
-	return deg / 180.0 * M_PI;
-}
-
 __global__ void
 calcDistanceForEachPermutation(location_t* locations, int* idx_holder, dist_idx_t * distances) {
 	extern __shared__ double aggregators[]; // shared memory declaration
@@ -45,4 +30,19 @@ calcDistanceForEachPermutation(location_t* locations, int* idx_holder, dist_idx_
 		distances[blockIdx.x].distance = aggregators[0];
 		distances[blockIdx.x].index = blockIdx.x;
 	}
+}
+
+__device__ float calculateDistance(location_t* loc1, location_t* loc2) {
+	float dlat = deg_to_rad(loc1->latitude - loc2->latitude);
+	float dlon = deg_to_rad(loc1->longitude - loc2->longitude);
+	float a = sinf(dlat / 2) * sinf(dlat / 2)
+			+ cosf(deg_to_rad(loc1->latitude)) * cosf(deg_to_rad(loc2->latitude))
+					* sinf(dlon / 2) * sinf(dlon / 2);
+	float c = 2 * atan2f(sqrtf(a), sqrtf(1 - a));
+	float d = EARTH_R * c;
+	return d;
+}
+
+__device__ float deg_to_rad(float deg) {
+	return deg / 180.0 * M_PI;
 }

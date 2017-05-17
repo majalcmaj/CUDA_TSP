@@ -1,16 +1,18 @@
 #include<cuda_runtime.h>
 #include<stdio.h>
 #include "tspcommon.h"
-__device__ int binlog(int a);
-__device__ void generateIndexes(int* indexes, int tid, int locations_count);
-__device__ void generateIndexPermutations(int* indexes, int indexes_count, int tid, double rand);
 
-__device__ int binlog(int a)
+__device__ void generateIndexPermutations(int* indexes, int indexes_count, int tid, double rand);
+__device__ void generateIndexes(int* indexes, int tid, int locations_count);
+
+__global__ void
+populateMemory(int* idx_holder, int locations_count, double* rands)
 {
-	// Opt p. Draszawki
-	int log = 0;
-	while(a >>= 1) log++;
-	return log;
+	int tid = threadIdx.x;
+	int tid_g = blockIdx.x * blockDim.x + tid;
+	generateIndexes(&idx_holder[blockIdx.x * locations_count], tid, locations_count);
+	int* indexes = &idx_holder[blockIdx.x * locations_count];
+	generateIndexPermutations(indexes, locations_count, tid, rands[tid_g]);
 }
 
 __device__ void generateIndexes(int* indexes, int tid, int locations_count)
@@ -37,14 +39,4 @@ __device__ void generateIndexPermutations(int* indexes, int indexes_count, int t
 		}
 		__syncthreads();
 	}
-}
-
-__global__ void
-populateMemory(int* idx_holder, int locations_count, double* rands)
-{
-	int tid = threadIdx.x;
-	int tid_g = blockIdx.x * blockDim.x + tid;
-	generateIndexes(&idx_holder[blockIdx.x * locations_count], tid, locations_count);
-	int* indexes = &idx_holder[blockIdx.x * locations_count];
-	generateIndexPermutations(indexes, locations_count, tid, rands[tid_g]);
 }

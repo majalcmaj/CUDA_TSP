@@ -57,4 +57,7 @@ typedef struct {
 	int index;
 } dist_idx_t;
 
+// __device__ functions
+__device__ int binlog(int a);
+
 #endif

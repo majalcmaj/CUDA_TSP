@@ -1,6 +1,6 @@
 #include"../common.h"
-#include"tspcommon.h"
 #include<cuda_runtime.h>
+#include"tspcommon.h"
 
 __global__ void
 rankPermutations(dist_idx_t* distances)

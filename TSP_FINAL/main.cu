@@ -10,7 +10,7 @@ int main()
 	location_t* locations = NULL;
 	int locations_length;
 
-	errno = read_csv("../resources/CitiesLocationsSmall.csv", &locations, &locations_length);
+	errno = read_csv("../resources/CitiesLocations.csv", &locations, &locations_length);
 	if(errno != 0)
 	{
 		fprintf(stderr, "Reading city locations from file failed. with errno=%d\n", errno);

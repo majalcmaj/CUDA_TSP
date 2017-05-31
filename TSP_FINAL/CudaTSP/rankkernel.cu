@@ -43,5 +43,8 @@ rankPermutations(dist_idx_t* distances)
 		other = tmp;
 		__syncthreads();
 	}
+
+	// printf("KERNEL: %lf\n", current[tid].distance);
+
 	distances[tid] = current[tid];
 }

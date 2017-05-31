@@ -1,6 +1,6 @@
-#include<cuda_runtime.h>
 #include<stdio.h>
 #include "tspcommon.h"
+#include<cuda_runtime.h>
 
 __device__ void generateIndexPermutations(int* indexes, int indexes_count, int tid, double rand);
 __device__ void generateIndexes(int* indexes, int tid, int locations_count);
@@ -20,6 +20,15 @@ __device__ void generateIndexes(int* indexes, int tid, int locations_count)
 	if(tid < locations_count) {
 		indexes[tid] = tid;
 	}
+}
+
+#include<cuda_runtime.h>
+__device__ int binlog(int a)
+{
+	// Opt p. Draszawki
+	int log = 0;
+	while(a >>= 1) log++;
+	return log;
 }
 
 __device__ void generateIndexPermutations(int* indexes, int indexes_count, int tid, double rand)

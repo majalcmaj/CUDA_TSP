@@ -24,7 +24,7 @@ crossoverTheFittest(dist_idx_t* distances, int* indexes, double* rands)  // Todo
 	int* cross_with_idxs = &indexes[distances[cross_with].index * locations_count];
 
 	int chunk_size = CHUNK_SIZE(locations_count);
-	int crossover_chunk_start = 1;// (rands[bid] * 0xFFFFFFu) % ( locations_count - CHUNK_SIZE );
+	int crossover_chunk_start = (int)(rands[bid]  * (locations_count - chunk_size ));
 	int crossover_chunk_end = crossover_chunk_start + chunk_size;
 	int my_idx;
 	if(tid >= crossover_chunk_start && tid < crossover_chunk_end)

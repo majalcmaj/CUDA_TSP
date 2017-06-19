@@ -20,6 +20,8 @@ int main()
 		printf("Max grid dims: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
 		printf("Max block dims: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
 		printf("Shared mem per block %d\n", prop.sharedMemPerBlock);
+		printf("Clock speed: %d\n", prop.clockRate);
+		printf("Global memory size %d\n", prop.totalGlobalMem);
 	}
 	return 0;
 }

@@ -5,12 +5,15 @@
 #include"tspcommon.h"
 
 #define EARTH_R 6371
+#define MAX_LOCATIONS_COUNT 1024
+
+__constant__ location_t locations[MAX_LOCATIONS_COUNT] = {0, 0};
 
 __device__ float deg_to_rad(float deg);
-__device__ float calculateDistance(location_t* loc1, location_t* loc2);
+__device__ float calculateDistance(const location_t* loc1, const location_t* loc2);
 
 __global__ void
-calcDistanceForEachPermutation(location_t* locations, int* idx_holder, dist_idx_t * distances) {
+calcDistanceForEachPermutation(int* idx_holder, dist_idx_t * distances) {
 	extern __shared__ double aggregators[]; // shared memory declaration
 	int* indexes = &idx_holder[blockIdx.x * blockDim.x];
 	unsigned int tid = threadIdx.x;
@@ -32,7 +35,7 @@ calcDistanceForEachPermutation(location_t* locations, int* idx_holder, dist_idx_
 	}
 }
 
-__device__ float calculateDistance(location_t* loc1, location_t* loc2) {
+__device__ float calculateDistance(const location_t* loc1, const location_t* loc2) {
 	float dlat = deg_to_rad(loc1->latitude - loc2->latitude);
 	float dlon = deg_to_rad(loc1->longitude - loc2->longitude);
 	float a = sinf(dlat / 2) * sinf(dlat / 2)
@@ -45,4 +48,8 @@ __device__ float calculateDistance(location_t* loc1, location_t* loc2) {
 
 __device__ float deg_to_rad(float deg) {
 	return deg / 180.0 * M_PI;
+}
+
+void copyLocationsToDevice(location_t* locations_h, int locations_count) {
+	cudaMemcpyToSymbol(locations, locations_h, sizeof(location_t) * locations_count, 0, cudaMemcpyHostToDevice);
 }

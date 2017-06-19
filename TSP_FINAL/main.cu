@@ -3,49 +3,35 @@
 #include"common.h"
 #include "DataIO/dataio.h"
 #include "CudaTSP/cudatsp.h"
+#include <sys/time.h>
+
+#define DEVICE_0 0
+#define DEVICE_1 1
 
 int main()
 {
 	int errno = 0;
+	int i;
+	struct timespec start, end;
 	location_t* locations = NULL;
 	int locations_length;
 
-	errno = read_csv("../resources/CitiesLocations.csv", &locations, &locations_length);
+	errno = read_csv("../resources/CitiesLocations64.csv", &locations, &locations_length);
 	if(errno != 0)
 	{
 		fprintf(stderr, "Reading city locations from file failed. with errno=%d\n", errno);
 		return 1;
 	}
 
-	run_cuda_tsp(locations, locations_length);
+	for(i = 0 ; i < 5 ; i ++)
+	{
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		run_cuda_tsp(locations, locations_length, DEVICE_1);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
+		double delta_us = (end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec) / 1000000000;
+		printf("Time\n%lf\n", delta_us);
+	}
 	free(locations);
 	return 0;
 }
-
-//// System includes
-//#include <stdio.h>
-//// CUDA runtime
-//#include <cuda_runtime.h>
-//#include<device_launch_parameters.h>
-//
-//int main()
-//{
-//	int count;
-//	cudaGetDeviceCount(&count);
-//
-//	printf("Available devices: %d\n", count);
-//	cudaDeviceProp prop;
-//
-//	for(int i = 0; i < count; i++)
-//	{
-//		cudaGetDeviceProperties(&prop, i);
-//		printf("Device: %d: %s\n", i, prop.name);
-//		printf("Compute capability: %d.%d\n", prop.major, prop.minor);
-//		printf("Max grid dims: (%d, %d, %d)\n", prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
-//		printf("Max block dims: (%d, %d, %d)\n", prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
-//		printf("Shared mem per block %d\n", prop.sharedMemPerBlock);
-//		printf("Max threads per block %d\n", prop.maxThreadsPerBlock);
-//	}
-//	return 0;
-//}

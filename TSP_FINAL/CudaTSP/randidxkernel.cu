@@ -3,32 +3,31 @@
 #include<cuda_runtime.h>
 
 __device__ void generateIndexPermutations(int* indexes, int indexes_count, int tid, double rand);
-__device__ void generateIndexes(int* indexes, int tid, int locations_count);
 
 __global__ void
 populateMemory(int* idx_holder, int locations_count, double* rands)
 {
+	extern __shared__ int indexes[];
 	int tid = threadIdx.x;
 	int tid_g = blockIdx.x * blockDim.x + tid;
-	generateIndexes(&idx_holder[blockIdx.x * locations_count], tid, locations_count);
-	int* indexes = &idx_holder[blockIdx.x * locations_count];
-	generateIndexPermutations(indexes, locations_count, tid, rands[tid_g]);
-}
-
-__device__ void generateIndexes(int* indexes, int tid, int locations_count)
-{
 	if(tid < locations_count) {
 		indexes[tid] = tid;
 	}
+	generateIndexPermutations(indexes, locations_count, tid, rands[tid_g]);
+	int* indexes_d = &idx_holder[blockIdx.x * locations_count];
+	if(tid < locations_count) {
+		indexes_d[tid] = indexes[tid];
+	}
 }
 
-#include<cuda_runtime.h>
-__device__ int binlog(int a)
+__device__ int binlog(int bits)
 {
-	// Opt p. Draszawki
-	int log = 0;
-	while(a >>= 1) log++;
-	return log;
+    int log = 0;
+    if( ( bits & 0xffff0000 ) != 0 ) { bits >>= 16; log = 16; }
+    if( bits >= 256 ) { bits >>= 8; log += 8; }
+    if( bits >= 16  ) { bits >>= 4; log += 4; }
+    if( bits >= 4   ) { bits >>= 2; log += 2; }
+    return log + ( bits >> 1 );
 }
 
 __device__ void generateIndexPermutations(int* indexes, int indexes_count, int tid, double rand)

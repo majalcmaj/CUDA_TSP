@@ -9,8 +9,8 @@
 
 #include<time.h>
 
-#define BLOCKS_COUNT 1024
-#define ITERATIONS 50000
+#define BLOCKS_COUNT 256
+#define ITERATIONS 10000
 
 // DEBUG
 #include"../DataIO/dataio.h"
@@ -19,7 +19,7 @@ __global__ void
 populateMemory(int* idx_holder, int locations_count, double* rands);
 
 __global__ void
-calcDistanceForEachPermutation(location_t* locations, int* idx_holder, dist_idx_t* distances);
+calcDistanceForEachPermutation(int* idx_holder, dist_idx_t* distances);
 
 __global__ void
 rankPermutations(dist_idx_t* distances);
@@ -30,40 +30,41 @@ crossoverTheFittest(dist_idx_t* distances, int* indexes, double* rands);  // Tod
 __global__ void
 mutateGenomes(dist_idx_t* sorted_distances, int* indexes, double* rands);
 
+void copyLocationsToDevice(location_t* locations, int locations_count);
 void generate_randoms(curandGenerator_t* gen, double* rands, int count);
 void init_curand(curandGenerator_t* gen, double** rands, size_t alloc_size);
 void print_best(int number, int* indexes_d, dist_idx_t* distances_d, int locations_count, char print_indexes);
 
-int run_cuda_tsp(location_t* locations, int locations_count)
+int run_cuda_tsp(location_t* locations, int locations_count, int on_device)
 {
 	// Host variables
-	int locsize;
 	curandGenerator_t curand_generator;
 	int i;
 
 	// Device variables
 	int* indexes_d;
 	double* rands_d;
-	location_t* locations_d;
 	dist_idx_t* distances_d;
+
+	CudaSafeCall( cudaSetDevice(on_device) );
+
 
 	// Initializaion
 	init_curand(&curand_generator, &rands_d, 2 * sizeof(double) * locations_count * BLOCKS_COUNT);
 	CudaSafeCall(cudaMalloc(&indexes_d, sizeof(int) * BLOCKS_COUNT * locations_count));
 
-	locsize = sizeof(location_t) * locations_count;
-	cudaMalloc(&locations_d, locsize);
-	cudaMemcpy(locations_d, locations, locsize, cudaMemcpyHostToDevice);
+
+	copyLocationsToDevice(locations, locations_count);
 
 	cudaMalloc(&distances_d, 2 * BLOCKS_COUNT * sizeof(dist_idx_t));
 
 	// Logic
-	populateMemory<<<BLOCKS_COUNT, locations_count>>>(indexes_d, locations_count, rands_d);
+	populateMemory<<<BLOCKS_COUNT, locations_count, sizeof(int) * locations_count>>>(indexes_d, locations_count, rands_d);
 	CudaCheckError();
 
 	for(i = 0 ; i < ITERATIONS ; i ++)
 	{
-		calcDistanceForEachPermutation<<<BLOCKS_COUNT, locations_count, sizeof(double) * locations_count>>>(locations_d, indexes_d, distances_d);
+		calcDistanceForEachPermutation<<<BLOCKS_COUNT, locations_count, sizeof(double) * locations_count>>>(indexes_d, distances_d);
 		CudaCheckError();
 
 		rankPermutations<<<1, BLOCKS_COUNT, 2 * sizeof(dist_idx_t) * BLOCKS_COUNT>>>(distances_d);
@@ -76,21 +77,19 @@ int run_cuda_tsp(location_t* locations, int locations_count)
 		crossoverTheFittest<<<BLOCKS_COUNT / 2, locations_count, 2 * locations_count * sizeof(int)>>>(distances_d, indexes_d, rands_d);
 
 		generate_randoms(&curand_generator, rands_d, BLOCKS_COUNT * locations_count * 2);
-		mutateGenomes<<<BLOCKS_COUNT, locations_count>>>(distances_d, indexes_d, rands_d);
+		mutateGenomes<<<BLOCKS_COUNT, locations_count, sizeof(int) * locations_count>>>(distances_d, indexes_d, rands_d);
 	}
 
-	calcDistanceForEachPermutation<<<BLOCKS_COUNT, locations_count, sizeof(double) * locations_count>>>(locations_d, indexes_d, distances_d);
+	calcDistanceForEachPermutation<<<BLOCKS_COUNT, locations_count, sizeof(double) * locations_count>>>(indexes_d, distances_d);
 	CudaCheckError();
 
 	rankPermutations<<<1, BLOCKS_COUNT, 2 * sizeof(dist_idx_t) * BLOCKS_COUNT>>>(distances_d);
 	CudaCheckError();
 
-	print_best(i, indexes_d, distances_d, locations_count, 1);
+	print_best(i, indexes_d, distances_d, locations_count, 0);
 
 	// Cleanup
 	cudaFree(rands_d);
-	cudaFree(locations_d);
-	cudaFree(locations_d);
 	cudaFree(distances_d);
 
 	curandDestroyGenerator(curand_generator);
@@ -117,7 +116,7 @@ void print_best(int number, int* indexes_d, dist_idx_t* distances_d, int locatio
 	dist_idx_t best_distance;
 	int* indexes = (int*)malloc(sizeof(int) * locations_count);
 	CudaSafeCall( cudaMemcpy(&best_distance, distances_d, sizeof(dist_idx_t), cudaMemcpyDeviceToHost) );
-	printf("Iteration %d\nBest distance: %lf\n", number, best_distance.distance, best_distance.index);
+	printf("%lf\n", best_distance.distance);
 
 	if(print_indexes)
 	{
@@ -131,47 +130,3 @@ void print_best(int number, int* indexes_d, dist_idx_t* distances_d, int locatio
 	}
 	free(indexes);
 }
-
-// DEBUG
-//#define LENGTH 16
-//	dist_idx_t distances[4];
-//	distances[0].index = 0;
-//	distances[1].index = 1;
-//	distances[2].index = 2;
-//	distances[3].index = 3;
-//
-//	dist_idx_t* distances_d;
-//	cudaMalloc(&distances_d, 4 * sizeof(dist_idx_t));
-//	cudaMemcpy(distances_d, distances, 4 * sizeof(dist_idx_t), cudaMemcpyHostToDevice);
-//	int indexes[LENGTH * 4] = {
-//			5, 0xa, 1, 0xb, 2, 4, 3, 0xc, 0, 6, 8, 7, 0xf, 9, 0xe, 0xd,
-//			2, 0, 7, 4, 0xc, 1, 6, 0xb, 3, 0xa, 0xd, 5, 0xe, 0xf, 9, 8
-//	};
-//	int* indexes_d;
-//	cudaMalloc(&indexes_d, LENGTH * 4 * sizeof(int));
-//	cudaMemcpy(indexes_d, indexes, LENGTH * 4 * sizeof(int), cudaMemcpyHostToDevice);
-//
-//	double* rands;
-//	curandGenerator_t gen;
-//	curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_MTGP32);
-//	CudaCheckError();
-//	CudaSafeCall(cudaMalloc(&rands, 2 * sizeof(double) * BLOCKS_COUNT));
-//	curandGenerateUniformDouble(gen, rands, 2 * BLOCKS_COUNT);
-//	CudaCheckError();
-//
-//	cudaMemcpy(indexes, indexes_d, LENGTH * 4 * sizeof(int), cudaMemcpyDeviceToHost);
-//	for(int i = 0 ; i < 4 * LENGTH; i++)
-//	{
-//		printf("%5X", indexes[i]);
-//		if(i % LENGTH == LENGTH-1)
-//			printf("\n");
-//	}
-
-//printf("MUTATING\n\n");
-//cudaMemcpy(indexes, indexes_d, LENGTH * 4 * sizeof(int), cudaMemcpyDeviceToHost);
-//for(int i = 0 ; i < 4 * LENGTH; i++)
-//{
-//	printf("%5X", indexes[i]);
-//	if(i % LENGTH == LENGTH-1)
-//		printf("\n");
-//}

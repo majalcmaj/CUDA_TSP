@@ -4,6 +4,6 @@
 #include <stdlib.h>
 #include "../common.h"
 
-int run_cuda_tsp(location_t* locations, int locations_size);
+int run_cuda_tsp(location_t* locations, int locations_size, int on_device);
 
 #endif
